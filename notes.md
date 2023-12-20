@@ -341,3 +341,248 @@ O que aprendemos nessa aula:
 Quais são as categorias de testes no Flutter;
 A quantidade de implementação de testes recomendada por categoria no Flutter;
 O trade-off de cada categoria de teste.
+
+
+##### 20/12/2023
+
+@02-Criando testes de widget
+
+@@01
+Resolvendo o problema de acesso ao Widget
+
+Neste passo, resolveremos o problema que consiste na execução de todos os testes do Dashboard sem conseguirmos acessar algumas das funcionalidades. Esse problema acontece porque o Dashboard() não possui um scroll, ou seja, qualquer ação feita na tela que suba sua parte inferior, como no caso da abertura do teclado por exemplo, fará o sistema nos alertar de que existe algo inacessível no widget.
+Pensando nisso, faz sentido que a solução venha a partir da adição de uma rolagem. Após acessarmos a classe Dashboard, usaremos o atalho "Alt + Enter" e a opção "Wrap with widget" para envolvermos o Column(), que mantém os componentes visuais, com um SingleChildScrollView().
+
+body: SingleChildScrollView(
+  child: Column(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+//...COPIAR CÓDIGO
+Se executarmos o teste após as alterações, ele funcionará corretamente. Entretanto, a tela do aplicativo deixará de apresentar o visual esperado, afinal o SingleChildScrollView() cresce conforme a quantidade de componentes na tela, sem respeitar a configuração feita com mainAxisAlignment.
+
+01-child
+
+Para termos o layout necessário, há uma técnica que modifica a forma como SingleChildScrollView() funciona, fazendo com que ele ocupe exatamente o tamanho da tela. As informações sobre esta configuração são encontradas na documentação do SingleChildScrollView, onde encontraremos um exemplo de sua implementação.
+
+De volta ao Dashboard, envolveremos o SingleChildScrollView() em um LayoutBuilder(). No builder() desse novo widget, implementaremos uma função que recebe um context e uma referência BoxConstraints que chamaremos de constraints. Com uma arrow function, retornaremos o próprio SingleChildScrollView().
+
+body: LayoutBuilder(
+  builder: (context, constaints) => SingleChildScrollView(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+//...COPIAR CÓDIGO
+A próxima configuração consiste em ajustar o tamanho de SingleChildScrollView() a partir do parâmetro contraints. Para isso, envolveremos o Column() com um ConstrainedBox(), que se tornará filho de SingleChildScrollView(). Nesse novo widget, passaremos a propriedade constraints recebendo uma instância BoxConstraints() que, por sua vez, receberá minHeight com o valor constraints.maxHeight.
+
+body: LayoutBuilder(
+  builder: (context, constaints) => SingleChildScrollView(
+    child: ConstrainedBox(
+      constraints: BoxConstraints(
+        minHeight: constaints.maxHeight
+      ),
+      child: Column(
+//...COPIAR CÓDIGO
+Ao executarmos a aplicação, nosso emulador passará a exibir a tela com o layout correto.
+
+02-tela
+
+Além disso, como ela possui a propriedade de scroll, nossa bateria de testes não encontrará nenhum problema. A seguir, continuaremos explorando possibilidades durante os nossos testes.
+
+https://api.flutter.dev/flutter/widgets/SingleChildScrollView-class.html
+
+@@2
+Resolvendo o problema do Dashboard
+
+Caso precise, no link a seguir, você pode baixar o projeto com todas as alterações realizadas na aula passada.
+Para evitar o problema ao executar múltiplos testes no Dashboard, implemente a solução sugerida pela documentação do SingleChildScrollView utilizando o LayoutBuilder.
+
+Após implementar, execute ambos os testes, verifique se ambos passam ao mesmo tempo e confira se o visual do App não foi afetado.
+
+https://github.com/alura-cursos/flutter-tests/archive/aula-1.zip
+
+https://api.flutter.dev/flutter/widgets/SingleChildScrollView-class.html#widgets.SingleChildScrollView.1
+
+Ambos os testes devem passar e o visual do Dashboard não deve ser modificado.
+Você pode conferir o código desta atividade a partir deste commit.
+
+https://github.com/alura-cursos/flutter-tests/commit/a3aa313dcd56b9a07608216a81fd3f112b857f87
+
+@@03
+Buscando widgets com mais precisão
+
+Com os problemas anteriores resolvidos, partiremos para a avaliação dos testes que fizemos, entendendo se eles fazem sentido em relação ao nosso objetivo. Considerando o primeiro teste, nosso objetivo era validar se a imagem principal é apresentada. Neste caso faz sentido, pois temos apenas uma única imagem em um único widget que é apresentado sem falhas.
+Já no segundo teste, verificamos a apresentação da primeira funcionalidade, algo que não possui tanto valor para nosso projeto, já que o Dashboard está sujeito a ter diversos tipos de features. Logo, não há nada descritivo o suficiente para indicar qual é a "primeira" funcionalidade.
+
+Sendo assim, faz mais sentido validarmos se estamos recebendo a funcionalidade esperada, seja "Transfer", a "Transaction Feed", ou ainda qualquer outra que possa ser implementada futuramente. Faremos então a conversão de nosso teste para que consigamos identificar com mais precisão se a funcionalidade de transferência, por exemplo, está sendo apresentado.
+
+O primeiro passo será alterar a descrição do segundo teste para "Should display the transfer feature when the Dashboard is opened". Como as características do "Transfer" são as mesmas do "Transaction Feed", atuaremos precisamente sobre o conteúdo, que é onde eles se diferem. Para buscarmos os conteúdos, usaremos outras funções próprias do Finder, como widgetWithText() e widgetWithIcon(). Elas basicamente recebem o widget que queremos testar e verificam se o conteúdo dentro dele é um texto ou um ícone, respectivamente.
+
+Começaremos pelo ícone Icons.monetization_on, que passaremos para o widgetWithIcon() juntamente com o FeatureItem.
+
+testWidgets('Should display the first feature when the Dashboard is opened',
+    (tester) async {
+  await tester.pumpWidget(MaterialApp(home: Dashboard()));
+  final firstFeature = find.widgetWithIcon(FeatureItem, Icons.monetization_on);
+  expect(firstFeature, findsWidgets);
+});COPIAR CÓDIGO
+Nosso teste ocorrerá como esperado, afinal o ícone passado realmente existe na tela. Se passarmos outro ícone qualquer e executarmos novamente, teremos um problema. Antes de continuarmos, alteraremos o nome da variável firstFeature para iconTransferFeatureItem, de modo a explicitarmos o que ela realmente representa.
+
+testWidgets('Should display the transfer feature when the Dashboard is opened',
+    (tester) async {
+  await tester.pumpWidget(MaterialApp(home: Dashboard()));
+  final iconTransferFeatureItem = find.widgetWithIcon(FeatureItem, Icons.monetization_on);
+  expect(iconTransferFeatureItem, findsWidgets);
+});COPIAR CÓDIGO
+Continuando, incluiremos uma validação para o conteúdo do texto com widgetWithText() recebendo a string "Transfer". Note que devemos tomar bastante cuidado, pois o texto deve ser exatamente o que aparece na tela. Retornaremos a verificação a uma variável nameTransferFeatureItem e faremos o expect() passando nameTransferFeatureItem e, agora que estamos buscando algo único na tela, findsOneWidget.
+
+testWidgets('Should display the transfer feature when the Dashboard is opened',
+    (tester) async {
+  await tester.pumpWidget(MaterialApp(home: Dashboard()));
+  final iconTransferFeatureItem = find.widgetWithIcon(FeatureItem, Icons.monetization_on);
+  expect(iconTransferFeatureItem, findsOneWidget);
+  final nameTransferFeatureItem = find.widgetWithText(FeatureItem, 'Transfer');
+  expect(nameTransferFeatureItem, findsOneWidget);
+});COPIAR CÓDIGO
+Desta forma, nossa validação e feedback estarão bem mais precisos e nossa aplicação mais segura. Lembrando que, ao fazermos novos testes, é sempre interessante inserir um conteúdo errado para nos certificarmos se a própria verificação está funcionando.
+
+Perceba que é importante identificar exatamente o que se deseja testar, de modo que as validações sirvam para confirmar se o nosso negócio está sendo apresentado corretamente.
+
+@@04
+Verificando a existência da funcionalidade
+
+Modifique o teste que verifica a existência da primeira funcionalidade para que valide a existência da funcionalidade de transferência.
+Para isso, use as seguintes funções para o Finder:
+
+find.widgetWithIcon para buscar o ícone da funcionalidade;
+find.widgetWithText para buscar o texto da funcionalidade.
+Após ajuste, rode o teste e confira se passa conforme o esperado
+
+O teste deve passar sem problemas. Você pode conferir o código desta atividade a partir deste commit.
+
+https://github.com/alura-cursos/flutter-tests/commit/fa77feead665ec4bf2d34fe1873ba24fec3af643
+
+@@05
+Buscando widgets com predicate
+
+Anteriormente, conseguimos validar a funcionalidade de transferir para um contato com mais precisão. Neste passo, validaremos o "Transaction Feed" (ou "lista de transferências") da mesma maneira. Seguiremos a mesma metodologia aplicada na etapa anterior, o que nos traz a possibilidade de simplesmente copiarmos e colarmos o código, efetuando em seguida algumas modificações. Nesse caso, alteraremos a descrição, o ícone e o texto que é verificado.
+testWidgets('Should display the transfer feature when the Dashboard is opened',
+    (tester) async {
+  await tester.pumpWidget(MaterialApp(home: Dashboard()));
+  final iconTransferFeatureItem = find.widgetWithIcon(FeatureItem, Icons.monetization_on);
+  expect(iconTransferFeatureItem, findsOneWidget);
+  final nameTransferFeatureItem = find.widgetWithText(FeatureItem, 'Transfer');
+  expect(nameTransferFeatureItem, findsOneWidget);
+});
+testWidgets('Should display the transaction feed feature when the Dashboard is opened',
+    (tester) async {
+  await tester.pumpWidget(MaterialApp(home: Dashboard()));
+  final iconTranssactionFeedFeatureItem = find.widgetWithIcon(FeatureItem, Icons.description);
+  expect(iconTranssactionFeedFeatureItem, findsOneWidget);
+  final nameTransactionFeedFeatureItem = find.widgetWithText(FeatureItem, 'Transaction Feed');
+  expect(nameTransactionFeedFeatureItem, findsOneWidget);
+});COPIAR CÓDIGO
+Se executarmos os testes, o sistema buscará e encontrará a feature com as características estabelecidas sem problemas. Porém, há um detalhe interessante que devemos nos atentar para termos o benefício de avaliar e conseguir reutilizar nossos códigos. Note que foi fácil testarmos o nosso widget usando "Ctrl + C > Ctrl + V", mas e se tivéssemos widgets mais complexos e com mais conteúdos para serem verificados?
+
+Existe uma alternativa de busca usando Finder que nos permite encontrar exatamente as features com as características desejadas com apenas uma única chamada. Começando de forma didática, comentaremos todo o bloco de código relativo à criação e verificação de iconTransferFeatureItem.
+
+Ainda nesse testWidgets(), nossa intenção é encontrarmos todo o FeatureItem representado pela transferência, e não somente o texto ou o ícone. Sendo assim, criaremos uma variável transferFeatureItem recebendo o retorno de find.byWidgetPredicate(), que nos possibilita implementar uma função que recebe um widget e devolve um valor booleano indicando se ele foi encontrado ou não.
+
+No escopo da função, retornaremos false, o valor padrão indicando que o widget buscado não foi encontrado. Usaremos o if para verificar se o widget recebido faz parte de FeatureItem. Em seguida, continuaremos verificando cada uma das propriedades retornando outras expressões booleanas, como widget.name == 'Transfer' e widget.icon == Icons.monetization_on.
+
+testWidgets('Should display the transfer feature when the Dashboard is opened',
+    (tester) async {
+  await tester.pumpWidget(MaterialApp(home: Dashboard()));
+  final transferFeatureItem = find.byWidgetPredicate((widget) {
+    if(widget is FeatureItem) {
+      return widget.name == 'Transfer' && widget.icon == Icons.monetization_on;
+    }
+    return false;
+  });
+});COPIAR CÓDIGO
+No expect(), verificaremos se o transferFeatureItem fruto da análise acima é encontrado somente uma vez usando o findsOneWidget.
+
+testWidgets('Should display the transfer feature when the Dashboard is opened',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(home: Dashboard()));
+    final transferFeatureItem = find.byWidgetPredicate((widget) {
+      if(widget is FeatureItem) {
+        return widget.name == 'Transfer' && widget.icon == Icons.monetization_on;
+      }
+      return false;
+    });
+    expect(transferFeatureItem, findsOneWidget);
+  });COPIAR CÓDIGO
+Executando o código, veremos que nosso teste funciona como deveria. Modificando algum valor, como "Transfers" em widget.name, o teste retornará um erro. Assim, temos que o byWidgetPredicate() passa por todos os componentes de uma árvore de widgets e, ao devolver um true, informa que encontrou algo.
+
+Isso pode ser testado adicionando um return true ao nosso código antes mesmo de qualquer validação, o que causará um erro informando que muitos widgets correspondentes foram encontrados (já que todos os existentes retornarão verdadeiro). Feitas essas verificações, podemos apagar o código que havíamos comentado anteriormente.
+
+Agora que entendemos o byWidgetPredicate(), podemos realizar a conversão no teste do "Transaction Feed". Porém, não parece apropriado simplesmente copiarmos e colarmos esse código, pois faz mais sentido extraí-lo para uma função. Começaremos selecionando todo o código de if até o ponto em que retornamos false e usando "Ctrl + Alt + M" para extrair um método featureItemMatcher().
+
+bool featureItemMatcher(Widget widget) {
+  if(widget is FeatureItem) {
+    return widget.name == 'Transfer' && widget.icon == Icons.monetization_on;
+  }
+  return false;
+}COPIAR CÓDIGO
+Para que possamos reutilizá-lo, indicaremos que tanto o nome quanto o ícone serão recebidos via parâmetro. Em seguida, modificaremos os conteúdos hard-code no retorno de modo a passarmos diretamente as variáveis recebidas no método.
+
+bool featureItemMatcher(Widget widget, String name, IconData icon) {
+  if(widget is FeatureItem) {
+    return widget.name ==  name && widget.icon == icon;
+  }
+  return false;
+}
+COPIAR CÓDIGO
+Desta forma, na primeira chamada de featureItemMatcher(), passaremos a enviar o widget, a string "Transfer" e o ícone Icons.monetization_on. Como essa é uma chamada de uma única linha, alteraremos o corpo da função para uma arrow function.
+
+testWidgets('Should display the transfer feature when the Dashboard is opened',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(home: Dashboard()));
+    final transferFeatureItem = find.byWidgetPredicate((widget) => featureItemMatcher(widget, 'Transfer', Icons.monetization_on));
+    expect(transferFeatureItem, findsOneWidget);
+  });COPIAR CÓDIGO
+Na segunda busca, ao invés de executarmos todo o bloco de código anteriormente, buscaremos o transactionFeedFeatureItem a partir do byWidgetPredicate(), novamente usando uma arrow function para executar o método featureItemMatcher com os valores widget, 'Transaction Feed', Icons.description.
+
+testWidgets('Should display the transfer feature when the Dashboard is opened',
+    (tester) async {
+  await tester.pumpWidget(MaterialApp(home: Dashboard()));
+  final transferFeatureItem = find.byWidgetPredicate((widget) => featureItemMatcher(widget, 'Transfer', Icons.monetization_on));
+  expect(transferFeatureItem, findsOneWidget);
+});
+testWidgets('Should display the transaction feed feature when the Dashboard is opened',
+    (tester) async {
+  await tester.pumpWidget(MaterialApp(home: Dashboard()));
+  final transactionFeedFeatureItem = find.byWidgetPredicate((widget) => featureItemMatcher(widget, 'Transaction Feed', Icons.description));
+});COPIAR CÓDIGO
+Ao executarmos o teste, teremos o retorno esperado. Perceba que é possível explorar cada vez mais o Finder, pois ele nos disponibiliza diversas funcionalidade com comportamentos similares, mas com peculiaridades que facilitam bastante o processo.
+
+@@06
+Utilizando o predicate no teste
+
+Ajuste o teste para que, em vez de fazer a busca do ícone e texto, busque diretamente o FeatureItem com o ícone e texto esperado. Para isso, utilize o find.byWidgetPredicate().
+Em seguida, crie um teste para validar a existência da funcionalidade que lista as transferências.
+
+Nesse segundo teste, reutilize o mesmo código usado no teste que valida a funcionalidade de transferência. Para isso, extraia a lógica do predicate e reutilize no novo teste.
+
+Rode ambos os testes e verifique se passa conforme o esperado.
+
+Os testes devem passar sem problemas. Você pode conferir o código desta atividade a partir deste commit.
+
+https://github.com/alura-cursos/flutter-tests/commit/b6b02fa1f9d0d2fdfdf4b20049242122e1dae6c2
+
+@@07
+Para saber mais - Outros Finders comuns
+
+Além dos finders que utilizamos até o momento, existem outros que podem ser utilizados durante o teste de widgets. Caso tenha interesse explore as possibilidades consultando a documentação.
+
+https://api.flutter.dev/flutter/flutter_test/CommonFinders-class.html
+
+@@08
+O que aprendemos?
+
+O que aprendemos nesta aula:
+Adicionar scroll no Widget ocupando a tela inteira;
+Utilizar outros finders para buscas específicas;
+Reutilizar lógica do finder com predicate.
