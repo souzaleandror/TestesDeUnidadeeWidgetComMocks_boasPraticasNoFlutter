@@ -35,13 +35,8 @@ void main() {
     // final nameTransferFeatureItem =
     //     find.widgetWithText(FeatureItem, 'Transfer');
     // expect(nameTransferFeatureItem, findsOneWidget);
-    final transferFeatureItem = find.byWidgetPredicate((widget) {
-      if (widget is FeatureItem) {
-        return widget.name == 'Transfer' &&
-            widget.icon == Icons.monetization_on;
-      }
-      return false;
-    });
+    final transferFeatureItem = find.byWidgetPredicate((widget) =>
+        featureItemMatcher(widget, 'Transfer', Icons.monetization_on));
     expect(transferFeatureItem, findsOneWidget);
   });
 
@@ -55,14 +50,16 @@ void main() {
     // final nameTransferFeedFeatureItem =
     //     find.widgetWithText(FeatureItem, 'Transaction Feed');
     // expect(nameTransferFeedFeatureItem, findsOneWidget);
-    final nameTransferFeedFeatureItem = find.byWidgetPredicate((widget) {
-      if (widget is FeatureItem) {
-        return widget.name == 'Transaction Feed' &&
-            widget.icon == Icons.description;
-      }
-      return false;
-    });
-
+    final nameTransferFeedFeatureItem = find.byWidgetPredicate((widget) =>
+        featureItemMatcher(widget, 'Transaction Feed', Icons.description));
     expect(nameTransferFeedFeatureItem, findsOneWidget);
   });
+}
+
+bool featureItemMatcher(Widget widget, String name, IconData icon) {
+  if (widget is FeatureItem) {
+    return widget.name == name && widget.icon == icon;
+  }
+
+  return false;
 }

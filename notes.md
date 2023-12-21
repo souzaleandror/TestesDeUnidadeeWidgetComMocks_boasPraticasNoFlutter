@@ -586,3 +586,424 @@ O que aprendemos nesta aula:
 Adicionar scroll no Widget ocupando a tela inteira;
 Utilizar outros finders para buscas específicas;
 Reutilizar lógica do finder com predicate.
+
+##### 21/12/2023
+
+@03-Implementando teste de fluxo
+
+@@01
+Começando o teste de fluxo
+
+Na etapa anterior, aprendemos a criar Testes de Widgets para validar alguns componentes do nosso Dashboard, e o próximo passo será gerar um teste capaz de validar um fluxo inteiro. Em especial, focaremos na implementação da criação de contatos pelo botão "Create" do formulário, acessível ao clicar no container de "Transfer" na tela inicial e depois no Floating Action Button da lista de contatos.
+O botão"Create" envia as informações dos campos preenchidos ao banco de dados interno e imprime o novo item na lista da tela anterior. Portanto, verificaremos se o contato esperado realmente foi criado.
+
+O primeiro passo será criar um novo arquivo save_contact_flow.dart para receber todo o código desta verificação. Este teste será exatamente o mesmo visto com os widgets anteriores, mas com algumas peculiaridades durante sua execução.
+
+Começamos com a classe main() seguida de testWidgets()recebendo a descrição simples "Should save an contact". No callback, passaremos o tester e definiremos o async antes do escopo da função.
+
+Sabendo que iremos testar o fluxo inteiro, é ideal utilizarmos tudo o que foi feito desde o início do aplicativo pelo BytebankApp(). Portanto, escrevemos await seguido de tester.pumpWidget() chamando BytebankApp(), o widget inicializa a aplicação.
+
+Primeiramente, queremos verificar se o Dashboard() realmente foi apresentado, considerando o fluxo original. Para isso, indicaremos uma variável dashboard recebendo o find.byType(), que então buscará pelo Dashboard que deve aparecer ao longo da árvore de widgets apresentada pelo BytebankApp().
+
+Em seguida, adicionaremos o expect() recebendo a variável dashboard e a instrução findsOneWidget, afinal esse componente deve aparecer somente uma vez.
+
+void main(){
+  testWidgets('Should save a contact', (tester) async {
+    await tester.pumpWidget(BytebankApp());
+    final dashboard = find.byType(Dashboard);
+    expect(dashboard, findsOneWidget);
+  });
+}COPIAR CÓDIGO
+Ao executarmos o teste, teremos um feedback positivo. O próximo passo será fazer o clique diretamente no FeatureItem, sendo necessário encontrar o transferFeatureItem com find.byWidgetPredicate(). Da mesma maneira que anteriormente, passaremos um widget como parâmetro seguido de uma arrow function que chama o featureItemMatcher().
+
+void main(){
+  testWidgets('Should save a contact', (tester) async {
+    await tester.pumpWidget(BytebankApp());
+    final dashboard = find.byType(Dashboard);
+    expect(dashboard, findsOneWidget);
+
+    final transferFeatureItem = find.byWidgetPredicate((widget) => featureItemMatcher(widget, name, icon))
+  });
+}COPIAR CÓDIGO
+Como estamos reutilizando este código, não faz muito sentido mantê-lo dentro do arquivo dashboard_widget_test.dart. Portanto, geraremos um novo documento matchers.dart. Assim, qualquer matcher reutiliável poderá ser adicionado neste arquivo, "limpando" aqueles usados somente para teste.
+
+Pensando nisso, copiaremos todo o bloco da funçãofeatureItemMatcher() e colaremos no arquivo matchers.dart, fazendo as importações dos pacotes dashboard e material para compilar o código. Depois, voltaremos aos arquivos que utilizam essa função e importaremos o novo matchers.dart. Futuramente, após construirmos nossos testes, focaremos mais na organização do código.
+
+De volta ao save_contact_flow.dart, mandaremos para a chamada de featureItemMatcher os parâmetros widget, 'Transfer' e Icons.monetization_on. Em seguida, verificaremos se o "Transfer" é visível com expect() recebendo os parâmetros necessários.
+
+void main(){
+  testWidgets('Should save a contact', (tester) async {
+    await tester.pumpWidget(BytebankApp());
+    final dashboard = find.byType(Dashboard);
+    expect(dashboard, findsOneWidget);
+
+    final transferFeatureItem = find.byWidgetPredicate((widget) => featureItemMatcher(widget, 'Transfer', Icons.monetization_on));
+    expect(transferFeatureItem, findsOneWidget);
+  });
+}COPIAR CÓDIGO
+Encontrado o transferFeatureItem, precisaremos fazer alguma ação para que consigamos seguir com o fluxo, que nesse caso é o clique no botão de "Transfer". Para efetuarmos essa verificação usando o framework de teste do Flutter, usaremos o tester, que também disponibiliza comportamentos relacionados a ações, como o tap(). Ele nos permite passar como argumento um Finder, nesse caso otransferFeatureItem.
+
+final transferFeatureItem = find.byWidgetPredicate((widget) => featureItemMatcher(widget, 'Transfer', Icons.monetization_on));
+expect(transferFeatureItem, findsOneWidget);
+tester.tap(transferFeatureItem);COPIAR CÓDIGO
+Nosso teste continuará executando sem nenhum problema. Prosseguindo, esperamos que o botão direcione à lista de contatos. Da mesma maneira como encontramos o Dashboard(), nosso próximo passo será encontrar a contactsList com find.byType(). Em seguida, verificaremos sua presença com expect() e executaremos o teste.
+
+  final transferFeatureItem = find.byWidgetPredicate((widget) => featureItemMatcher(widget, 'Transfer', Icons.monetization_on));
+  expect(transferFeatureItem, findsOneWidget);
+  tester.tap(transferFeatureItem);
+  final contactsList = find.byType(ContactsList);
+  expect(contactsList, findsOneWidget);COPIAR CÓDIGO
+O retorno indicará uma falha no momento em que usamos o tap(), pois precisamos adicionar o await. É importante saber, que quando trabalhamos com tester, devemos nos lembrar de usar o await para evitar erros comuns.
+
+final transferFeatureItem = find.byWidgetPredicate((widget) => featureItemMatcher(widget, 'Transfer', Icons.monetization_on));
+expect(transferFeatureItem, findsOneWidget);
+await tester.tap(transferFeatureItem);
+final contactsList = find.byType(ContactsList);
+expect(contactsList, findsOneWidget);COPIAR CÓDIGO
+Entretanto, a próxima execução trará uma nova falha, pois o sistema não conseguiu encontrar o contactsList. Isso acontece porque há um delay entre as várias execuções após o clique em FeatureItem, exigindo diversos passos no framework do Flutter. Neste caso, precisamos que o sistema faça novamente a renderização do widget raiz, que é o BytebankApp, de modo a apresentar a lista de contatos.
+
+Para isso, temos em nosso framework de testes o pump(), que dispara um frame em um determinado período de tempo, realizando as micro tarefas da execução. Dado que estamos usando o tester, usaremos o para segurar a execução até que essas micro tarefas sejam finalizadas.
+
+final transferFeatureItem = find.byWidgetPredicate((widget) => featureItemMatcher(widget, 'Transfer', Icons.monetization_on));
+expect(transferFeatureItem, findsOneWidget);
+await tester.tap(transferFeatureItem);
+await tester.pump();
+
+final contactsList = find.byType(ContactsList);
+expect(contactsList, findsOneWidget);COPIAR CÓDIGO
+É importante saber que o pump() faz a próxima micro tarefa, então se existirem mais adiante, ele não consegue executá-las para apresentar a tela deseja. Sendo assim, mesmo utilizando-o, continuaremos recebendo um erro informando que a lista de contatos não foi encontrada.
+
+Entretanto, se executarmos o teste novamente, é possível que já tenha terminado as micro tarefas anteriores e apresente a contactsList. Seguiremos nesta abordagem a princípio, mas ela não é a ideal para nosso cenário geral.
+
+Nosso próximo passo será encontrar o Floating Action Button, algo que faremos criando uma variável fabNewContact recebendo a busca de ícone find.widgetWithIcon(). A busca, por vez, receberá o FloatingActionButton e o ícone Icons.add. Em seguida, adicionamos o expect() com os parâmetros específicos desta verificação.
+
+Aplicaremos então o tap(), da mesma maneira que antes, recebendo também o fabNewContact.
+
+final transferFeatureItem = find.byWidgetPredicate((widget) => featureItemMatcher(widget, 'Transfer', Icons.monetization_on));
+expect(transferFeatureItem, findsOneWidget);
+await tester.tap(transferFeatureItem);
+await tester.pump();
+
+final contactsList = find.byType(ContactsList);
+expect(contactsList, findsOneWidget);
+
+final fabNewContact = find.widgetWithIcon(FloatingActionButton, Icons.add);
+expect(fabNewContact, findsOneWidget);
+await tester.tap(fabNewContact);COPIAR CÓDIGO
+Para podermos apresentar o formulário, faremos um tester.pump() e criaremos a variável contactForm recebendo a busca find.byType() do ContactForm. Por fim, incluiremos o expect() validando o conteúdo da nova variável com o findsOneWidget.
+
+final fabNewContact = find.widgetWithIcon(FloatingActionButton, Icons.add);
+expect(fabNewContact, findsOneWidget);
+await tester.tap(fabNewContact);
+await tester.pump();
+
+final contactForm = find.byType(ContactForm);
+expect(contactsList, findsOneWidget);COPIAR CÓDIGO
+Ao executarmos, o sistema retornará uma falha, provavelmente porque o pump() nãõ foi o suficiente. Entretanto, mesmo se adicionarmos diversas chamadas de pump(), não conseguiremos encontrar o formulário.
+
+Isso acontece porque o pump() tem o objetivo de realizar a próxima micro tarefa, mas se houver outra pendente o suficiente para não apresentar a próxima tela, haverá falha. A seguir, veremos que existem alguns outros comportamentos que realizam o pump() e resolvem tudo o que é necessário, com algumas peculiaridades que merecem atenção.
+
+@@02
+Testando fluxo com teste de widget
+PRÓXIMA ATIVIDADE
+
+Caso precise, no link a seguir, você pode baixar o projeto com todas as alterações realizadas na aula passada.
+Implemente um teste de fluxo para verificar se é possível cadastrar um contato no App.
+
+Durante essa implementação, realize todos os passos até chegar no FAB para criar um novo contato e verificar a existência do formulário de contato.
+
+Rode o teste e veja se tudo funciona até clicar no FAB.
+
+Lembre-se que nesta implementação temos o problema em verificar a existência da tela de formulário de contato.
+
+https://github.com/alura-cursos/flutter-tests/archive/aula-2.zip
+
+O teste deve falhar ao verificar a existência do formulário de contato. A seguir veremos como resolver esse problema.
+Você pode conferir o código desta atividade a partir deste commit.
+
+https://github.com/alura-cursos/flutter-tests/commit/8dae5de334a38bbc2834dd1e44d94574fddbcae0
+
+@@03
+Utilizando objetos simulados
+
+Durante a execução de nosso teste, tivemos dificuldades para identificar a apresentação do formulário de contatos mesmo após executarmos diversas chamadas do pump(). Isso aconteceu pois ele executa micro tarefas, e não necessariamente resolve todos os problemas pendentes de nosso aplicativo durante o fluxo.
+Para resolvê-los, usaremos a função pumpAndSettle(), cujo objetivo é fazer várias chamadas de pump() até que ele solucione as pendências, seja de interações da tela, execuções de Future e assim por diante. Utilizando esta referência, conseguiremos verificar se aquilo que desejamos realmente é apresentado na navegação. Aproveitaremos esse momento e usaremos o pumpAndSettle() também na validação do transferFeatureItem.
+
+void main(){
+  testWidgets('Should save a contact', (tester) async {
+    await tester.pumpWidget(BytebankApp());
+    final dashboard = find.byType(Dashboard);
+    expect(dashboard, findsOneWidget);
+
+    final transferFeatureItem = find.byWidgetPredicate((widget) => featureItemMatcher(widget, 'Transfer', Icons.monetization_on));
+    expect(transferFeatureItem, findsOneWidget);
+    await tester.tap(transferFeatureItem);
+    await tester.pumpAndSettle();
+
+    final contactsList = find.byType(ContactsList);
+    expect(contactsList, findsOneWidget);
+
+    final fabNewContact = find.widgetWithIcon(FloatingActionButton, Icons.add);
+    expect(fabNewContact, findsOneWidget);
+    await tester.tap(fabNewContact);
+    await tester.pumpAndSettle();
+
+    final contactForm = find.byType(ContactForm);
+    expect(contactsList, findsOneWidget);
+  });
+}COPIAR CÓDIGO
+Entretanto, a execução desse teste demorará um tempo maior e nos retornará um erro de timed out. Mas por que isso ocorre? Quando entramos na classe ContactsList, temos acesso ao ContactDao() que realiza a chamada de integração com o banco de dados a partir do FutureBuilder. Essa execução tende a ser feita infinitamente, já que nosso teste é feito na VM de Dart, sem utilizar um emulador, levando à falha da integração, pois não há toda a configuração de ambiente esperada.
+
+Nesta situação, é recomendável simularmos estes comportamentos, sejam eles a integração com um banco de dados ou uma Web API, de modo que eles não aconteçam de verdade. Ou seja, teremos uma implementação equivalente a essas interfaces, tanto com o que chamamos quanto ao que devolvemos, mas que não serão realizadas de fato. Este é um recurso bastante comum quando trabalhamos com testes, principalmente os mais próximos aos Testes de Unidade, que são rápidos e não possuem tantas integrações.
+
+Na documentação do Flutter, há uma página específica sobre mocks, também conhecidos como mock objects ou objetos simulados. Eles são usados quando temos um ambiente no qual ficamos suscetíveis a chamadas de um banco de dados de uma Web API, e que tendem a deixar a execução lenta ou até mesmo apresentar falhas durante os testes.
+
+Um mock pode ser feito manualmente, mas isso tende a dar mais trabalho. Por isso, a própria documentação do Flutter sugere o uso da biblioteca Mockito. Também encontraremos informações sobre os flaky tests, que são justamente testes que tendem a ser frágeis durante a execução, já que dependem de alguma integração.
+
+Para evitar estes problemas, manter o teste rápido e conseguir avaliar o fluxo inteiro, aplicaremos este recurso, começando com a adição da biblioteca mockito ao dev_dependencies do arquivo pubspec.yaml. Em seguida, clicaremos em Packages get" para baixarmos as dependências e termos acesso aos comportamentos e classes desse pacote.
+
+Criaremos então, no diretório "test", o arquivo mocks.dart que será responsável pelos mocks. No novo documento, criaremos uma nova classe MockContactsDao, que possui um prefixo indicando o que ela representa e um sufixo indicando a classe que ela irá mockar. Na sequência, faremos a extensão extends da classe Mock e implementaremos a classe ContactDao.
+
+class MockContactDao extends Mock implements ContactDao {
+
+}COPIAR CÓDIGO
+Desta forma, já temos a capacidade de criar uma classe compatível ao ContactDao(), mas cujos comportamentos não serão usados de fato.
+
+Com o objeto mockado, precisamos criar uma instância de MockContactsDao e mandá-la diretamente ao ContactsList. Nessa simulação, nossa única alternativa atualmente é acessarmos o método main() de save_contact_flow.dart e criarmos nele a instância desejada.
+
+void main(){
+  testWidgets('Should save a contact', (tester) async {
+    final mockContactDao = MockContactDao();
+    await tester.pumpWidget(BytebankApp());
+    final dashboard = find.byType(Dashboard);
+    expect(dashboard, findsOneWidget);
+//...COPIAR CÓDIGO
+Ao invés disso, usaremos uma técnica conhecida como Injeção de Dependência, que nos permitirá mandar a instância diretamente do BytebankApp, passando pelo Dashboard daí para ContactsList. Ou seja, ao invés da própria classe precisar de alguma referência externa para criar a instância, ela pedirá essa instância.
+
+Começaremos modificando a classe BytebankApp para que ela receba um ContactDao. Em seguida, receberemos esse contactDao como um parâmetro nominal e opcional, usando o @required de modo a estabelecermos que ele seja enviado.
+
+Em seguida, no runApp() do nosso aplicativo, mandaremos uma instância real de ContactDao(). Ou seja, devemos tomar cuidado para não fazer nada inesperado. Ainda nesse arquivo, passaremos contactDao: contactDao() na chamada do Dashboard(), que enviará a instância recebida para aContactsList.
+
+void main() {
+  runApp(BytebankApp(contactDao: ContactDao()));
+}
+
+class BytebankApp extends StatelessWidget {
+
+  final ContactDao contactDao;
+
+  BytebankApp({@required this.contactDao});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      theme: ThemeData(
+        primaryColor: Colors.green[900],
+        accentColor: Colors.blueAccent[700],
+        buttonTheme: ButtonThemeData(
+          buttonColor: Colors.blueAccent[700],
+          textTheme: ButtonTextTheme.primary,
+        ),
+      ),
+      home: Dashboard(contactDao: contactDao),
+    );
+  }
+}COPIAR CÓDIGO
+Na própria classe Dashboard, criaremos o atributo contactDao que novamente será recebido via construtor. Ao fazermos a chamada do ContactsList() em _showContactsList, mandaremos a mesma instância criada como atributo.
+
+class Dashboard extends StatelessWidget {
+
+  final ContactDao contactDao;
+  Dashboard({@required this.contactDao});
+
+//...código omitido 
+
+  void _showContactsList(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ContactsList(contactDao: contactDao),
+      ),
+    );
+  }
+//..código omitido
+}COPIAR CÓDIGO
+Em ContactsList, modificaremos o atributo _dao para contactDao e passaremos a recebê-lo via construtor.
+
+class ContactsList extends StatelessWidget {
+  final ContactDao contactDao;
+
+  ContactsList({@required this.contactDao});
+//...COPIAR CÓDIGO
+Feito este ajuste, recomendamos a executar novamente o aplicativo para conferir se tudo está funcionando como esperado. Caso tudo esteja correto, o componente "Transfer" conseguirá apresentar a lista de contatos sem nenhum problema. Nosso próximo passo será ajustar o teste para que consigamos mandar o objeto mockado.
+
+De volta ao save_contact_flow.dart, passaremos ao BytebankApp() a propriedade contactDao: recebendo o mockContactDao.
+
+void main(){
+  testWidgets('Should save a contact', (tester) async {
+    final mockContactDao = MockContactDao();
+    await tester.pumpWidget(BytebankApp(contactDao: mockContactDao,));
+    final dashboard = find.byType(Dashboard);
+    expect(dashboard, findsOneWidget);
+//...COPIAR CÓDIGO
+Terminas essas modificações, nosso teste finalmente será bem sucedido. Quando temos comunicações que exigem uma integração em meio ao fluxo do nosso aplicativo, faz sentido considerarmos o uso de objetos mockados. A seguir, daremos continuidade ao teste até finalizarmos o fluxo e conheceremos técnicas úteis que melhorarão nossa abordagem.
+
+https://flutter.dev/docs/cookbook/testing/unit/mocking
+
+@@04
+Implementando mocks com o Mockito
+PRÓXIMA ATIVIDADE
+
+Configure o projeto para que os widgets BytebankApp, Dashboard e ContactList recebam uma referência de ContactDao como dependência.
+Em seguida, adicione o mockito ao projeto colocando a dependência no pubspec.yml dentro do script dev_dependencies.
+
+Após baixar a dependência do mockito, crie um objeto simulado para o ContactDao e o envie para o BytebankApp logo no começo do teste ao chamar o pumpWidget. Então ajuste utilize o pumpAndSettle() ao invés dos pump().
+
+Rode o teste novamente e veja se agora ele passa ao verificar a existência do formulário de contato.
+
+O teste deve passar sem apresentar problemas.
+Você pode conferir o código desta atividade a partir deste commit.
+
+https://github.com/alura-cursos/flutter-tests/commit/5000dd1fe541220c78de0b836cccec30d8092d44
+
+@@05
+Finalizando o fluxo do teste
+
+Agora que nosso teste de fluxo consegue acessar o formulário de contatos, podemos partir para os próximos passos e finalizar esta parte. Testaremos o preenchimento de cada um dos campos e o clique no botão "Create" para ver se o novo item é apresentado na lista.
+Adicionaremos um campo nameTextField que buscaremos a partir de find.byWidgetPredicate() enviando uma função que recebe widget e retorna um booleano com o valor padrão false.
+
+Em seguida, validaremos a situação contrária com if(widget is TextField) retornando a expressão widget.decoration.labelText para verificar se esse atributo possui um "Full name". Então, chamaremos expect() passando nameTextField e o matcherfindsOneWidget.
+
+final nameTextField = find.byWidgetPredicate((widget) {
+  if(widget is TextField) {
+    return widget.decoration.labelText == 'Full name';
+  }
+  return false;
+});
+expect(nameTextField, findsOneWidget);COPIAR CÓDIGO
+Executando o código após esse novo passo, tudo funcionará corretamente. Continuando, usaremostester.enterText() para adicionarmos um conteúdo, passando a ele o nameTextField e o texto "Alex".
+
+final nameTextField = find.byWidgetPredicate((widget) {
+  if(widget is TextField) {
+    return widget.decoration.labelText == 'Full name';
+  }
+  return false;
+});
+expect(nameTextField, findsOneWidget);
+await tester.enterText(nameTextField, 'Alex');COPIAR CÓDIGO
+O próximo passo será repetirmos esse processo para o campo "Account number". Para isso, copiaremos e colaremos o código acima e modificaremos as referências onde necessário.
+
+final accountNumberTextField = find.byWidgetPredicate((widget) {
+  if(widget is TextField) {
+    return widget.decoration.labelText == 'Account number';
+  }
+  return false;
+});
+expect(accountNumberTextField, findsOneWidget);
+await tester.enterText(accountNumberTextField, '1000');COPIAR CÓDIGO
+Com os testes dos campos funcionando, partimos para o botão "Create". Na sequência do código, adicionamos uma variável createButton recebendo a busca find.widgetWithText() para a qual passaremos RaisedButton e 'Create'. Em seguida, faremos a validação com expect() recebendo createButton e findsOneWidget.
+
+Para verificarmos o clique, adicionaremos um await e a execução de tester.tap(createButton).
+
+final createButton = find.widgetWithText(RaisedButton, 'Create');
+expect(createButton, findsOneWidget);
+await tester.tap(createButton);COPIAR CÓDIGO
+Por fim, criaremos uma variável contactsList para a buscafind.byType(). Esta, por sua vez, receberá apenas ContactsList. Entretanto, note que o código não compilará, afinal já fizemos essa busca com o mesmo nome. Pensando nisso, alteraremos a variável para contactsListBack, indicando que é seu retorno. Na sequência, executaremos o expect().
+
+final contactsListBack = find.byType(ContactsList);
+expect(contactsListBack, findsOneWidget);COPIAR CÓDIGO
+A execução do teste, no entanto, retornará uma falha. Isso faz sentido, pois, no ContactForm, estamos realizando a integração com o banco de dados sem uso da estratégia de Injeção de Dependências, ou seja, nosso mock não está atuando.
+
+Portanto, fazemos a conversão na classe ContactForm adicionando o atributo contactDao que será recebido via construtor e enviado para o _ContactFormState. Nessa classe, modificaremos _dao para contactDao e novamente pediremos que ele seja enviado via construtor.
+
+class ContactForm extends StatefulWidget {
+
+  final ContactDao contactDao;
+  ContactForm({@required this.contactDao});
+
+  @override
+  _ContactFormState createState() => _ContactFormState(contactDao: contactDao);
+}
+
+class _ContactFormState extends State<ContactForm> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _accountNumberController =
+      TextEditingController();
+  final ContactDao contactDao;
+
+  _ContactFormState({@required this.contactDao});
+//...COPIAR CÓDIGO
+Também precisaremos passar a nova referência na chamada de ContactForm() da classe ContactsList.
+
+floatingActionButton: FloatingActionButton(
+  onPressed: () {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ContactForm(contactDao: contactDao,),
+      ),
+    );
+  },COPIAR CÓDIGO
+Após a execução, teremos uma referência nula na execução do then() do nosso ContactForm. Isso ocorre pois estamos tentando executar o retorno, que é um Future. Como ele foi mockado, esse retorno será nulo. A princípio, para resolvermos esse problema, extrairemos essa execução para um método _save() e passaremos a usar o async/await, de modo a dispensarmos a necessidade do then().
+
+void _save(Contact newContact, BuildContext context) async {
+  await contactDao.save(newContact);
+  Navigator.pop(context);
+}COPIAR CÓDIGO
+Ainda teremos um erro na busca por ContactsList, que corrigiremos adicionando o pumpAndSettle() ao nosso teste.
+
+final createButton = find.widgetWithText(RaisedButton, 'Create');
+expect(createButton, findsOneWidget);
+await tester.tap(createButton);
+await tester.pumpAndSettle();
+
+final contactsListBack = find.byType(ContactsList);
+expect(contactsListBack, findsOneWidget);COPIAR CÓDIGO
+Com isso, o teste conseguirá executar todo o fluxo esperado.
+
+@@06
+Finalizando os passos do teste de fluxo
+PRÓXIMA ATIVIDADE
+
+Adicione os demais passos para finalizar o teste de fluxo para salvar um contato:
+verificar a existência de ambos textfields;
+verificar a existência e clique do botão de criação.
+Em seguida, ajuste o formulário de contato para que agora ele receba o ContactDao pelo construtor, permitindo o uso do mock. Depois do ajuste, converta o código que chama o save() do ContactDao para que utilize o async await e evite a chamada do then().
+
+Então finalize o fluxo verificando se, ao clicar no botão de criação, a lista de contatos aparece. Por fim, rode o teste e veja se passa sem nenhum problema.
+
+O teste deve passar sem nenhum problema.
+Você pode conferir o código desta atividade a partir deste commit.
+
+https://github.com/alura-cursos/flutter-tests/commit/5000dd1fe541220c78de0b836cccec30d8092d44
+
+@@07
+Para saber mais - Agrupando testes
+PRÓXIMA ATIVIDADE
+
+Ao escrever testes de Widget, é muito comum a elaboração de mais de um teste para um Widget específico, como por exemplo, o Dashboard.
+No exemplo feito em curso, tivemos três testes que mantém o sufixo Dashboard is opended para indicar que é um comportamento do Dashboard, porém, podemos usar um recurso próprio do package de test, o group.
+
+Refatorando o mesmo código para o group, temos o seguinte resultado:
+
+void main() {
+  group('When Dashboard is opened', () {
+    testWidgets('Should display the main image', (WidgetTester tester) async {
+      //test code
+    testWidgets('Should display the transfer feature', (tester) async {
+      //test code
+    testWidgets('Should display the transaction feed feature', (tester) async {
+      //test code
+    });
+  });
+}COPIAR CÓDIGO
+Ao executar o group() temos o seguinte resultado visual:
+
+Observe que, além de organizar mais o código, a leitura do teste fica mais coerente.
+
+@@08
+O que aprendemos?
+PRÓXIMA ATIVIDADE
+
+O que aprendemos nesta aula:
+Testar fluxo com teste de Widget;
+Configurar Widgets o código para receber dependências;
+Utilizar objetos simulados para evitar o código de integração.
