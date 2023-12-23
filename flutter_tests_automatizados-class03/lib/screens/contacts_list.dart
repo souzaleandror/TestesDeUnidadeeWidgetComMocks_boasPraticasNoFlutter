@@ -5,16 +5,11 @@ import 'package:bytebank/screens/contact_form.dart';
 import 'package:bytebank/screens/transaction_form.dart';
 import 'package:flutter/material.dart';
 
-class ContactsList extends StatefulWidget {
+class ContactsList extends StatelessWidget {
   final ContactDao contactDao;
 
   ContactsList({required this.contactDao});
 
-  @override
-  _ContactsListState createState() => _ContactsListState();
-}
-
-class _ContactsListState extends State<ContactsList> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -22,8 +17,8 @@ class _ContactsListState extends State<ContactsList> {
         title: Text('Transfer'),
       ),
       body: FutureBuilder<List<Contact>>(
-        initialData: <Contact>[],
-        future: widget.contactDao.findAll(),
+        initialData: [],
+        future: contactDao.findAll(),
         builder: (context, snapshot) {
           switch (snapshot.connectionState) {
             case ConnectionState.none:
@@ -59,14 +54,11 @@ class _ContactsListState extends State<ContactsList> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.of(context)
-              .push(
-                MaterialPageRoute(
-                  builder: (context) =>
-                      ContactForm(contactDao: widget.contactDao),
-                ),
-              )
-              .then((value) => setState(() {}));
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => ContactForm(contactDao: contactDao),
+            ),
+          );
         },
         child: Icon(
           Icons.add,

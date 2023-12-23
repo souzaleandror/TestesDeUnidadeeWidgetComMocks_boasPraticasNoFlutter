@@ -705,7 +705,6 @@ Isso acontece porque o pump() tem o objetivo de realizar a próxima micro tarefa
 
 @@02
 Testando fluxo com teste de widget
-PRÓXIMA ATIVIDADE
 
 Caso precise, no link a seguir, você pode baixar o projeto com todas as alterações realizadas na aula passada.
 Implemente um teste de fluxo para verificar se é possível cadastrar um contato no App.
@@ -851,7 +850,6 @@ https://flutter.dev/docs/cookbook/testing/unit/mocking
 
 @@04
 Implementando mocks com o Mockito
-PRÓXIMA ATIVIDADE
 
 Configure o projeto para que os widgets BytebankApp, Dashboard e ContactList recebam uma referência de ContactDao como dependência.
 Em seguida, adicione o mockito ao projeto colocando a dependência no pubspec.yml dentro do script dev_dependencies.
@@ -961,7 +959,6 @@ Com isso, o teste conseguirá executar todo o fluxo esperado.
 
 @@06
 Finalizando os passos do teste de fluxo
-PRÓXIMA ATIVIDADE
 
 Adicione os demais passos para finalizar o teste de fluxo para salvar um contato:
 verificar a existência de ambos textfields;
@@ -977,7 +974,6 @@ https://github.com/alura-cursos/flutter-tests/commit/5000dd1fe541220c78de0b836cc
 
 @@07
 Para saber mais - Agrupando testes
-PRÓXIMA ATIVIDADE
 
 Ao escrever testes de Widget, é muito comum a elaboração de mais de um teste para um Widget específico, como por exemplo, o Dashboard.
 No exemplo feito em curso, tivemos três testes que mantém o sufixo Dashboard is opended para indicar que é um comportamento do Dashboard, porém, podemos usar um recurso próprio do package de test, o group.
@@ -1001,7 +997,6 @@ Observe que, além de organizar mais o código, a leitura do teste fica mais coe
 
 @@08
 O que aprendemos?
-PRÓXIMA ATIVIDADE
 
 O que aprendemos nesta aula:
 Testar fluxo com teste de Widget;

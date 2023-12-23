@@ -4,13 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'matchers.dart';
+import 'mocks.dart';
 
 void main() {
   testWidgets('Should display the main image when the Dashboard is opened',
       (WidgetTester tester) async {
+    final mockContactDado = MockContactDao();
     await tester.pumpWidget(
       MaterialApp(
-        home: BytebankApp(),
+        home: BytebankApp(
+          contactDao: mockContactDado,
+        ),
       ),
     );
     final mainImage = find.byType(Image);
@@ -19,9 +23,12 @@ void main() {
 
   testWidgets('Should display the first feature when the Dashboard is opened',
       (tester) async {
+    final mockContactDado = MockContactDao();
     await tester.pumpWidget(
       MaterialApp(
-        home: BytebankApp(),
+        home: BytebankApp(
+          contactDao: mockContactDado,
+        ),
       ),
     );
     final firstFeature = find.byType(FeatureItem);
@@ -30,7 +37,11 @@ void main() {
 
   testWidgets('Should display the first transfer when the Dashboard is opened',
       (tester) async {
-    await tester.pumpWidget(MaterialApp(home: BytebankApp()));
+    final mockContactDado = MockContactDao();
+    await tester.pumpWidget(MaterialApp(
+        home: BytebankApp(
+      contactDao: mockContactDado,
+    )));
     // final iconTranfererFeatureItem =
     //     find.widgetWithIcon(FeatureItem, Icons.monetization_on);
     // expect(iconTranfererFeatureItem, findsOneWidget);
@@ -45,7 +56,11 @@ void main() {
   testWidgets(
       'Should display the transaction feed when the Dashboard is opened',
       (tester) async {
-    await tester.pumpWidget(MaterialApp(home: BytebankApp()));
+    final mockContactDado = MockContactDao();
+    await tester.pumpWidget(MaterialApp(
+        home: BytebankApp(
+      contactDao: mockContactDado,
+    )));
     // final iconTranfererFeedItem =
     //     find.widgetWithIcon(FeatureItem, Icons.description);
     // expect(iconTranfererFeedItem, findsOneWidget);
