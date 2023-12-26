@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="JAVA_MODULE" version="4">
+  <component name="NewModuleRootManager" inherit-compiler-output="true">
+    <exclude-output />
+    <content url="file://$MODULE_DIR$">
+      <excludeFolder url="file://$MODULE_DIR$/flutter-tests-aula-1/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter-tests-aula-1/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter-tests-aula-1/build" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter-tests-aula-3/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter-tests-aula-3/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter-tests-aula-3/build" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter-tests-class01/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter-tests-class01/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter-tests-class01/build" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter-tests-class02/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter-tests-class02/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter-tests-class02/build" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter-tests-initial-project/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter-tests-initial-project/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter-tests-initial-project/build" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class01/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class01/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class01/build" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class01/ios/.symlinks/plugins/sqflite/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class01/ios/.symlinks/plugins/sqflite/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class01/ios/.symlinks/plugins/sqflite/build" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class01/ios/.symlinks/plugins/sqflite/example/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class01/ios/.symlinks/plugins/sqflite/example/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class01/ios/.symlinks/plugins/sqflite/example/build" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class02/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class02/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class02/build" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class02/ios/.symlinks/plugins/sqflite/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class02/ios/.symlinks/plugins/sqflite/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class02/ios/.symlinks/plugins/sqflite/build" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class02/ios/.symlinks/plugins/sqflite/example/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class02/ios/.symlinks/plugins/sqflite/example/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class02/ios/.symlinks/plugins/sqflite/example/build" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class03/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class03/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class03/build" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class03/ios/.symlinks/plugins/sqflite/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class03/ios/.symlinks/plugins/sqflite/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class03/ios/.symlinks/plugins/sqflite/build" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class03/ios/.symlinks/plugins/sqflite/example/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class03/ios/.symlinks/plugins/sqflite/example/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class03/ios/.symlinks/plugins/sqflite/example/build" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class04/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class04/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class04/build" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class04/ios/.symlinks/plugins/sqflite/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class04/ios/.symlinks/plugins/sqflite/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class04/ios/.symlinks/plugins/sqflite/build" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class04/ios/.symlinks/plugins/sqflite/example/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class04/ios/.symlinks/plugins/sqflite/example/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/flutter_tests_automatizados-class04/ios/.symlinks/plugins/sqflite/example/build" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+</module>

@@ -1002,3 +1002,339 @@ O que aprendemos nesta aula:
 Testar fluxo com teste de Widget;
 Configurar Widgets o código para receber dependências;
 Utilizar objetos simulados para evitar o código de integração.
+
+#### 23/12/2023
+
+@04-Simulando comportamentos
+
+@@01
+Verificando chamadas do banco de dados
+
+Finalizamos o teste de fluxo, mas existem alguns pontos importantes a serem considerados nesta etapa da verificação. Quando realizamos este tipo de teste, passamos por diversos passos do aplicativo para atingir o fluxo esperado, como o de salvar o contato.
+Ao acessarmos a lista de contatos, é importante nos certificarmos de que a busca é feita no banco de dados. Por exemplo, se estivermos acessando a tela inicial e clicarmos no botão "Transfer", o aplicativo traz todos os contatos salvos. Devemos garantir que este comportamento pelo menos foi chamado, pois é o que confere valor para nossa usuária ou usuário final.
+
+Mas como faremos isso utilizando objetos simulados? Esse teste será possível verificando as chamadas de funções, uma funcionalidade que o Mockito nos oferece.
+
+Para isso, após garantirmos que a lista de contatos está presente, usaremos o verify(), que é uma função do Mockito. Sua proposta é receber um argumento qualquer e validar se ele foi ou não chamado, ou mesmo quantas vezes ele foi chamado. Passaremos então o MockContactDao e verificaremos se o findAll() foi chamado quando ContactsList é apresentado.
+
+final transferFeatureItem = find.byWidgetPredicate((widget) => featureItemMatcher(widget, 'Transfer', Icons.monetization_on));
+expect(transferFeatureItem, findsOneWidget);
+await tester.tap(transferFeatureItem);
+await tester.pumpAndSettle();
+
+final contactsList = find.byType(ContactsList);
+expect(contactsList, findsOneWidget);
+
+verify(mockContactDao.findAll());COPIAR CÓDIGO
+Ao executarmos, o teste passará corretamente. Para termos certeza de que tudo funcionou como esperado, usaremos afunção called(), a qual verifica a quantidade de vezes que um comportamento é chamado. Nesse caso, passaremos o valor 0 indicando que o método findAll() não foi chamado nenhuma vez.
+
+verify(mockContactDao.findAll()).called(0);COPIAR CÓDIGO
+A execução dessa vez trará um erro, afinal o findAll() é chamado uma única vez. Da mesma forma, se passarmos o valor 2, também receberemos um erro.
+
+No restante do fluxo, entramos na lista de contato, fazemos a interação com o botão de adição e acessamos o formulário. Quando este último é acessado, não há uma execução parecida com a feita na lista, então podemos seguir adiante.
+
+Já em nameTextField, podemos extrair um matcher para o TextField e utilizá-lo tanto no nome quanto no número da conta. Com o atalho "Ctrl + Alt + M", extrairemos o método _textFieldMatcher(), que passará a receber uma string labelText que será retornada na verificação.
+
+bool _textFieldMatcher(Widget widget, String labelText) {
+  if(widget is TextField) {
+    return widget.decoration.labelText == labelText;
+  }
+  return false;
+}COPIAR CÓDIGO
+Em seguida, modificaremos as validações de nameTextField e accountNumberTextField de modo que elas passem a enviar suas respectivas strings ao método criado. Como são chamadas simples, também podemos transformá-las em expressões.
+
+final nameTextField = find.byWidgetPredicate((widget) => _textFieldMatcher(widget, 'Full name'));
+expect(nameTextField, findsOneWidget);
+await tester.enterText(nameTextField, 'Alex');
+
+final accountNumberTextField = find.byWidgetPredicate((widget) => _textFieldMatcher(widget, 'Account number'));
+expect(accountNumberTextField, findsOneWidget);
+await tester.enterText(accountNumberTextField, '1000');COPIAR CÓDIGO
+Prosseguindo no código, após buscarmos o botão e fazermos uma ação tap(), queremos garantir que a chamada que salva um contato é realizada. Para isso, usaremos novamente o verify(), verificando se o método save() é chamado a partir de mockContactDao. Porém, esse método espera um argumento, no caso um contato com as informações enviadas em cada um dos campos.
+
+Sendo assim, passaremos uma instância de Contact() indicando que o ID é 0 e os argumentos são os mesmos que passamos acima, ou seja, "Aex" e 1000.
+
+final createButton = find.widgetWithText(RaisedButton, 'Create');
+expect(createButton, findsOneWidget);
+await tester.tap(createButton);
+await tester.pumpAndSettle();
+
+verify(mockContactDao.save(Contact(0, 'Alex', 1000)));COPIAR CÓDIGO
+Porém, ao executarmos, teremos uma falha, pois o sistema não identificou que o objeto foi enviado, por mais que até indique a chamada de save(). Isso não é necessariamente um problema do teste. Na realidade, queremos validar a igualdade de objetos, o que precisa ser feito com o operador ==.
+
+Da maneira como escrevemos o código, apenas verificamos os endereços reservados em memória, que realmente serão diferentes. Para conseguirmos que eles sejam iguais, acessaremos a classe Contact, utilizaremos o atalho "Alt + Insert" e selecionaremos "==0 and hashCode". Na janela que se abrirá, selecionaremos os critérios de comparação do objeto. Como queremos o nome e o número da conta, selecionaremos esse atributos e clicaremos em "OK".
+
+@override
+bool operator ==(Object other) =>
+    identical(this, other) ||
+    other is Contact &&
+        runtimeType == other.runtimeType &&
+        name == other.name &&
+        accountNumber == other.accountNumber;
+
+@override
+int get hashCode => name.hashCode ^ accountNumber.hashCode;COPIAR CÓDIGO
+Executando o teste, essa implementação será utilizada como critério de igualdade. Após voltarmos para a lista, queremos garantir que a busca feita no banco de dados também é realizada novamente. Para isso, adicionamos outro verify() usando novamente o mockContactDao e validando se o findAll() é chamado mais uma vez.
+
+verify(mockContactDao.save(Contact(0, 'Alex', 1000)));
+
+final contactsListBack = find.byType(ContactsList);
+expect(contactsListBack, findsOneWidget);
+
+verify(mockContactDao.findAll());COPIAR CÓDIGO
+Entretanto, teremos um erro indicando que o findAll() não é chamado novamente. Perceba que ContactsList é um StatelessWidget, e não é feito um rebuild na sua execução. Portanto, se quisermos garantir que a chamada no banco de dados e a atualização aconteçam, precisaremos convertê-lo para um StatefulWidget.
+
+Usaremos o atalho "Alt + Enter" e a opção "Convert to StatefulWidget" do próprio IntelliJ e executaremos novamente o teste. Dessa vez, o build será realizado corretamente e a verificação ocorrerá como esperado.
+
+Se você tiver alguma dúvida sobre o funcionamento do aplicativo após as alterações feitas durante os testes, basta executar o fluxo novamente. Note que a mudança para um StatefulWidget não causou nenhum impacto, mas agora garantimos que ela é atualizada conforme esperado.
+
+Dessa forma, finalizamos o teste que garante o fluxo de armazenamento de um contato.
+
+@@02
+Utilizando o verify do mockito
+
+Caso precise, no link a seguir, você pode baixar o projeto com todas as alterações realizadas na aula passada.
+Ajuste o teste de fluxo para verificar se as chamadas do DAO são invocadas.
+
+Para isso, utilize o verify(), enviando o findAll() como argumento. A verificação precisa ser feita depois de conferir se a lista de contatos está presente.
+
+Verifique também se o save() com o contato esperado é chamado. Para verificar o objeto com os valores esperados, sobrescreva o operador == e o hashcode utilizando a IDE. Ao gerar ambos métodos, lembre-se de selecionar apenas os atributos name e accountNumber.
+
+Em seguida, verifique se o findAll() é chamado novamente ao voltar para a lista de contatos.
+
+Na implementação do curso, o ContactsList estava como StatelessWidget, o que evita a chamada do build() novamente. Portanto, converta para StatefulWidget.
+Por fim, confira todo o código de teste e faça extrações de funções para reutilização de código, por exemplo a lógica do predicate do TextField. Rode o teste e veja se funciona como esperado.
+
+https://github.com/alura-cursos/flutter-tests/archive/aula-3.zip
+
+O teste deve passar sem nenhum problema.
+Você pode conferir o código desta atividade a partir deste commit
+
+https://github.com/alura-cursos/flutter-tests/commit/ebc53bce9a2f0cf4963ee3123935e0c6fbd91ec9
+
+@@03
+Criando o teste de fluxo de transferência
+
+Já aprendemos a criar um teste de fluxo que garante o armazenamento de um contato, e agora podemos partir para o teste que assegura a transferência para um contato.
+Nesse fluxo, a partir da tela principal do aplicativo, clicamos em "Transfer" e depois em algum contato da lista. Após isso, preenchemos o campo do formulário com um valor e clicamos no botão "Transfer" desta tela. Com isso, uma janela de autenticação se abre para enviar as informações ao servidor, que então nos devolve um dialog indicando se a transferência foi realizada ou não.
+
+São essas navegações e funcionalidades que desejamos garantir. Antes de começarmos, vamos organizar o código pensando em hierarquia. Primeiro, criamos um novo diretório dentro de "test" chamado "flows", representando nossos fluxos, que receberá o arquivo save_contact_flow.dart.
+
+A próxima pasta, "widget", será criada exclusivamente para os Testes de Widget, no momento contidos apenas em dashboard_widget_test.dart. Em seguida, criaremos o diretório "unit" recebendo os Testes de Unidade feitos no arquivo transaction_test.dart.
+
+Por fim, criaremos os diretórios "matchers" e "mocks" os arquivos com seus respectivos nomes. Desta maneira, nosso projeto estará melhor organizado e poderemos prosseguir com o novo teste.
+
+Começaremos criando um arquivo transfer_flow.dart na pasta "flows". Neste, seguiremos a mesma metodologia aplicada no primeiro fluxo com as funções main() e testWidgets(). Teremos a descrição "Should transfer to a contact" e implementaremos um callback recebendo tester e abrindo o escopo com async.
+
+void main(){
+  testWidgets('transfer to a contact', (tester) async {
+
+  });
+}COPIAR CÓDIGO
+O fluxo de criação de uma transferência é igual ao de armazenar um contato até um determinado ponto, que é a exibição da lista de contatos. Sendo assim, copiaremos o bloco de código responsável por essa validação em save_contact_flow.dart, o colaremos no novo arquivo e faremos as importações necessárias.
+
+void main(){
+  testWidgets('transfer to a contact', (tester) async {
+    final mockContactDao = MockContactDao();
+    await tester.pumpWidget(BytebankApp(contactDao: mockContactDao,));
+    final dashboard = find.byType(Dashboard);
+    expect(dashboard, findsOneWidget);
+
+    final transferFeatureItem = find.byWidgetPredicate((widget) => featureItemMatcher(widget, 'Transfer', Icons.monetization_on));
+    expect(transferFeatureItem, findsOneWidget);
+    await tester.tap(transferFeatureItem);
+    await tester.pumpAndSettle();
+
+    final contactsList = find.byType(ContactsList);
+    expect(contactsList, findsOneWidget);
+
+  });
+}COPIAR CÓDIGO
+Executando o teste, ele passará como esperado. Aproveitaremos esse momento de organização do código para reaproveitarmos algumas interações que são feitas, como aquela na qual fazemos um clique e buscamos um FeatureItem. Selecionaremos esse trecho do código e usaremos "Ctrl + Alt + M" para criarmos o método clickOnTheTransferFeatureItem()
+
+Future clickOnTheTransferFeatureItem(WidgetTester tester) async {
+  final transferFeatureItem = find.byWidgetPredicate((widget) => featureItemMatcher(widget, 'Transfer', Icons.monetization_on));
+  expect(transferFeatureItem, findsOneWidget);
+  await tester.tap(transferFeatureItem);
+}COPIAR CÓDIGO
+No diretório "flows", criaremos um novo arquivo actions.dart para o qual passaremos a função criada. Esse nome de arquivo não é padrão, e, se você preferir, pode utilizar outros, como interactions ou events. Faremos as importações necessárias e passaremos a utilizar a nova função em transfer_flow.dart e save_contact_flow.dart.
+
+void main(){
+  testWidgets('transfer to a contact', (tester) async {
+    final mockContactDao = MockContactDao();
+    await tester.pumpWidget(BytebankApp(contactDao: mockContactDao,));
+    final dashboard = find.byType(Dashboard);
+    expect(dashboard, findsOneWidget);
+
+    await clickOnTheTransferFeatureItem(tester);
+    await tester.pumpAndSettle();
+//...COPIAR CÓDIGO
+void main(){
+  testWidgets('Should save a contact', (tester) async {
+    final mockContactDao = MockContactDao();
+    await tester.pumpWidget(BytebankApp(contactDao: mockContactDao,));
+    final dashboard = find.byType(Dashboard);
+    expect(dashboard, findsOneWidget);
+
+    await clickOnTheTransferFeatureItem(tester);
+    await tester.pumpAndSettle();
+//...COPIAR CÓDIGO
+Na função clickOnTheTransferFeatureItem(), perceba que ainda estamos usando o await, quando podemos simplesmente retornar o tester.tap().
+
+Future<void> clickOnTheTransferFeatureItem(WidgetTester tester) async {
+  final transferFeatureItem = find.byWidgetPredicate((widget) => featureItemMatcher(widget, 'Transfer', Icons.monetization_on));
+  expect(transferFeatureItem, findsOneWidget);
+  return tester.tap(transferFeatureItem);
+}COPIAR CÓDIGO
+Assim, nosso retorno será um Future<void>, e o responsável por garantir ou não o tipo esperado é quem fizer a chamada, no caso transfer_flow e save_contact_flow.dart. Executaremos novamente os testes para garantirmos que eles continuam com o comportamento esperado, e a seguir continuaremos criando o teste de fluxo de transferência.
+
+@@04
+Organizando o projeto
+
+Organize o código de teste para que cada arquivo fique dentro do seu diretório. Para isso, crie os seguintes diretórios:
+flows;
+matchers;
+mocks;
+unit;
+widgets.
+Em seguida, mova os arquivos nos seus devidos diretórios e crie o arquivo para o novo teste de fluxo, garantindo o comportamento de transferir para um contato.
+
+Adicione o código de teste até validar que, a partir do Dashboard, chega até a lista de contatos. Também verifique se o findAll() do DAO é chamado.
+
+Dica: copie o código do teste de fluxo para adicionar um contato até o momento que verifica a presença da lista de contatos.
+Por fim, execute o teste de fluxo da transferência e confira se passa.
+
+https://github.com/alura-cursos/flutter-tests/commit/d91f21cc1430c2be3e91a807d32092cce679920e
+
+@@05
+Adicionando comportamentos nos moc
+
+Fizemos a primeira parte do teste de fluxo que garante a transferência para um contato, e agora daremos continuidade à interação dentro da lista de contatos - interação essa consiste em clicar em um dos itens para acessar o formulário que permite a ação de transferir.
+Depois de verificarmos que o método findAll() é executado,, criaremos um contactItem realizando a busca com find.byWidgetPredicate(), da mesma maneira feita em TransferFeatureItem. Neste, receberemos widget e retornaremos por padrão um false. Em seguida, usaremos o if() para provar o contrário, passando as características do ContactItem esperado.
+
+Para isso, precisamos fazer com que _ContactItem seja público, pois no momento é uma classe privada. Com "Shift + F6", removeremos o _ para torná-la pública. Com acesso ao ContactItem, verificaremos se o nome e o número da conta batem com o esperado. Nessa simulação, usaremos o nome "Alex" e número "1000". Por fim, faremos o expect() passando o contactItem recebido e o findsOneWidget.
+
+final contactItem = find.byWidgetPredicate((widget) {
+  if(widget is ContactItem) {
+    return widget.contact.name == 'Alex' && widget.contact.accountNumber == 1000;
+  }
+  return false;
+});
+expect(contactItem, findsOneWidget);COPIAR CÓDIGO
+Ao executarmos, teremos uma falha indicando que o widget não foi encontrado. Isso é esperado, pois quando usamos mocks, não temos a chamada de integração da busca no banco de dados. Precisamos fazer uma configuração a mais para que consigamos simular o retorno do contato esperado no momento em que findAll() é executado. Desta maneira, conseguiremos usar o fluxo que pega a informação e dar continuidade ao processo.
+
+Para isso, usamos algumas chamadas do próprio mockito, prestando atenção ao fato de que essa configuração deverá ser feita exatamente antes da execução de findAll(), ou seja, precisamos configurar em um ponto do código onde temos certeza de não ter executado o findAll() ainda - nesse teste, antes de clickOnTheTransferFeatureitem().
+
+Faremos a chamada de when(), do próprio mockito, que indica uma ação tomada antes de um acontecimento, nesse caso quando o mockContactDao chamar o findAll(). O mockito nos disponibiliza diversas possibilidades de funções, como thenAnswer(), thenReturn() e thenThrow().
+
+O thenThrow() basicamente lança uma exceção, servindo para simular erros no aplicativo; o thenReturn() retorna o valor nesta função; e o thenAnswer() atribui uma função para aquela que estamos utilizando no ponto da chamada. Por exemplo, no momento da chamada do findAll(), poderíamos utilizar o thenAnswer() para executar um Future ou algo do gênero.
+
+Usaremos o thenAnswer() para simular a execução do banco de dados, que é um Future. Portanto, indicaremos este Future devolvendo o valor diretamente, sem nenhuma execução. Na implementação do thenAnswer(), basicamente receberemos uma função que possui um tipo Invocation e precisa retornar o mesmo valor utilizado na chamada, que seria um Future<ContactsList>.
+
+Passaremos então o invocation e usaremos o async/await na definição do escopo da função, onde simplesmente retornaremos uma lista vazia. Dentro dela, passaremos um contato.
+
+when(mockContactDao.findAll()).thenAnswer((invocation) async {
+  return [Contact(0, 'Alex', 1000)];
+});
+await clickOnTheTransferFeatureItem(tester);
+await tester.pumpAndSettle();COPIAR CÓDIGO
+O invocation é basicamente a chamada da função findAll(). Para termos certeza disso, podemos fazer um debugPrint() indicando 'name invocation' pegando sua propriedade invocation.memberName com a sintaxe ${}.
+
+when(mockContactDao.findAll()).thenAnswer((invocation) async {
+  debugPrint('name invocation ${invocation.memberName}');
+  return [Contact(0, 'Alex', 1000)];
+});COPIAR CÓDIGO
+Feita a modificação do fluxo, executaremos este teste, que passará corretamente retornando que o nome da invocação é justamente o findAll. Sendo assim, podemos remover o debugPrint() do código.
+
+O próximo passo será verificarmos se o clique dá acesso ao formulário de criação de transferência. Para isso, faremos um await tester.tap() passando o contactItem, além de um await pumpAndSettle(). Em seguida, criaremos a variável transactionForm recebendo o find.byType() que buscará pelo TransactionForm. Por fim, validaremos com o expect().
+
+expect(contactItem, findsOneWidget);
+await tester.tap(contactItem);
+await tester.pumpAndSettle();
+
+final transactionForm = find.byType(TransactionForm);
+expect(transactionForm, findsOneWidget);COPIAR CÓDIGO
+Esse teste também será executado com sucesso. Antes de continuarmos, vamos a um ponto importante: no formulário da transação não existem problemas visuais neste momento, mas em seu código temos uma dependência de _webClient, da mesma maneira que tivemos em ContactForm. Ou seja, faz sentido considerarmos todas a técnica de injeção de dependência.
+
+Porém, se fizermos isso com o TransactionWebClient(), nosso código ficará cada vez mais poluído e difícil de manter. A seguir, conheceremos uma nova técnica sobre este tipo de abordagem, justamente para evitar manutenções desnecessárias a cada nova dependência.
+
+@@06
+Avançando o fluxo até o formulário
+
+Adicione o código de teste para o fluxo do App avançar até o formulário de transferência.
+Para isso, utilize o thenAnswer() após chamar o when() com o findAll() como argumento. Então devolva um Future<List<Contact>> que tenha pelo menos um contato.
+
+Em seguida, modifique o código para identificar um contato e clicar no ContactItem dele.
+
+Se o ContactItem estiver privado, ajuste-o para que seja público.
+Por fim, verifique se a tela de formulário da transferência é apresentada e rode o teste.
+
+O teste deve passar sem nenhum problema. Você pode conferir o código desta atividade a partir deste commit.
+
+https://github.com/alura-cursos/flutter-tests/commit/84855b7bd75b3f31986e0c82fc8b40c6abf4b202
+
+@@07
+Para saber mais - setup e teardown nos testes
+
+Durante a execução do teste de fluxo, precisamos enviar o dao mockado como dependência do nosso Widget. Esse tipo de abordagem é muito comum para qualquer teste de Widget que faz uso de integração.
+Em um único teste com uma única dependência não temos tanto impacto no código, porém, ao criar mais testes que precisam da mesma ou mesmas dependências do anterior, temos o seguinte código de inicialização dos testes:
+
+void main() {
+  testWidgets('Should save a contact', (tester) async {
+    final mockContactDao = MockContactDao();
+    await tester.pumpWidget(BytebankApp(
+      contactDao: mockContactDao,
+    ));
+
+    //test code
+  });
+  testWidgets('Should save contacts', (tester) async {
+    final mockContactDao = MockContactDao();
+    await tester.pumpWidget(BytebankApp(
+      contactDao: mockContactDao,
+    ));
+
+    //test code
+  });
+}COPIAR CÓDIGO
+Um boilerplate que tende aumentar caso o Widget dependa de mais objetos!
+
+Para evitar esse boilerplate, podemos utilizar um recurso conhecido como setup que tem o objetivo de inicializar a configuração dos testes.
+
+Isso significa que o setup é sempre executado cada vez que um teste rodar. Considerando o seu uso, temos o seguinte resultado:
+
+void main() {
+  MockContactDao mockContactDao;
+
+  setUp(() async {
+    mockContactDao = MockContactDao();
+  });
+
+  testWidgets('Should save a contact', (tester) async {
+    await tester.pumpWidget(BytebankApp(
+      contactDao: mockContactDao,
+    ));
+
+    //test code
+  });
+
+  testWidgets('Should save contacts', (tester) async {
+    final mockContactDao = MockContactDao();
+    await tester.pumpWidget(BytebankApp(
+      contactDao: mockContactDao,
+    ));
+
+    //test code
+  });
+}COPIAR CÓDIGO
+Dessa forma, para cada teste executado, temos uma instância nova das dependências e a responsabilidade de inicialização fica por conta do setup, o que facilita também a leitura de teste.
+
+Além do setup, também temos o teardown que é um recurso de pós execução de cada teste muito utilizado para encerrar rotinas, como por exemplo, num teste de integração que usa um banco de dados real e precisa limpar. Na própria documentação é apresentado um exemplo.
+
+@@08
+O que aprendemos?
+
+O que aprendemos nesta aula:
+Verificar chamadas de métodos de objetos simulados;
+Gerar código automático do operador == e o hashcode;
+Finalizar um teste de fluxo.
