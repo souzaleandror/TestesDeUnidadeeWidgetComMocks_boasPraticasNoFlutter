@@ -1,5 +1,9 @@
 #### 18/12/2023
 
+```
+ flutter pub run build_runner build 
+ ```
+
 Curso de Testes de unidade e Widget com Mocks: boas práticas no Flutter
 
 @01-Criando primeiros testes
@@ -1338,3 +1342,374 @@ O que aprendemos nesta aula:
 Verificar chamadas de métodos de objetos simulados;
 Gerar código automático do operador == e o hashcode;
 Finalizar um teste de fluxo.
+
+#### 27/12/2023
+
+@05-Finalizando o teste de fluxo principal
+
+@@01
+Utilizando o InheritedWidget
+
+Nesta etapa, aprenderemos uma técnica para mantermos a Injeção de Dependência de modo a mockar objetos esperados ao mesmo tempo que evitamos a abordagem de replicar os objetos para cada um dos widgets de nossa árvore.
+Esta técnica é baseada em um widget especial chamado InheritedWidget, o qual faz com que consigamos manter alguns dados esperados ou dependências do aplicativo, mas que ainda assim podem ser propagadas para baixo na árvore de widgets. Logo, todos os widgets abaixo do widget raiz poderão acessar as informações.
+
+Na própria documentação encontramos informações sobre esse processo, além de exemplos de sua implementação. Por ser um widget que não apresenta um conteúdo visual, mas sim mantém informações, criaremos na pasta "lib" um novo diretório "widgets" para o armazenarmos. Dentro dela, teremos o arquivo app_dependencies.dart, que tratará justamente de resolver as dependências do nosso aplicativo.
+
+Teremos nele uma classe AppDependencies que estende de InheritedWidget. Feito isso, a classe será destacada, alertando que precisamos fazer uma sobrescrita do método updateShouldNotify(), utilizado para notificar se houve alguma modificação que exige uma atualização.
+
+class AppDependencies extends InheritedWidget {
+  @override
+  bool updateShouldNotify(InheritedWidget oldWidget) {
+    // TODO: implement updateShouldNotify
+    return null;
+  }
+}COPIAR CÓDIGO
+Quando queremos passar uma dependências, basicamente precisamos enviá-la como argumento/parâmetro do construtor. Nesse caso, teremos um contactDao.
+
+class AppDependencies extends InheritedWidget {
+
+  final ContactDao contactDao;
+  AppDependencies({@required this.contactDao});
+
+  @override
+  bool updateShouldNotify(InheritedWidget oldWidget) {
+    // TODO: implement updateShouldNotify
+    return null;
+  }
+
+}COPIAR CÓDIGO
+Feita esta primeira modificação, usaremos o próprio AppDependencies, que é um InheritedWidget, para replicarmos o contactDao na raiz do projeto BytebankApp.Para isso, ao invés de passarmos o MaterialApp() como primeiro widget da árvore, vamos envolvê-lo com o AppDependencies().
+
+Para conseguirmos renderizar todos os widgets da árvore, precisaremos modificar o construtor do AppDependencies adicionando um Widget child. Por fim, chamaremos o super() indicando que o child será exatamente o que foi recebido no construtor.
+
+class AppDependencies extends InheritedWidget {
+  final ContactDao contactDao;
+
+  AppDependencies({
+    @required this.contactDao,
+    @required Widget child,
+  }) : super(child: child);
+//...COPIAR CÓDIGO
+Nesse momento, não queremos mais enviar via construtor referências como contactDao, _webClient ou qualquer outra dependência usada no aplicativo. Em Dashboard, removeremos o construtor que recebe o contactDao, que também deixará de ser recebido na chamada de ContactsList(). Repetiremos esse processo em ContactsList, ContactForm e _ContactFormState, mantendo a referência contactDao somente nas chamadas de contactDao.findAll() e no builder do MaterialPageRoute(). Nosso código deixará de compilar, mas lidaremos com isso mais tarde.
+
+Para herdarmos o nosso InheritedWidget, precisaremos implementar a função estática dependOnInheritedWidgetOfExactType, como é indicado na documentação, a partir de um BuildContext. Em AppDependencies, criaremos a função estática AppDependencies of() passando o BuildContext context como parâmetro. No corpo da função, retornaremos o dependOnInheritedWidgetOfExactType incluindo como generics o próprio AppDependencies. Como essa é uma chamada bem simples, podemos inclusive fazer o retorno via arrow.
+
+static AppDependencies of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<AppDependencies>();COPIAR CÓDIGO
+Em ContactForm, acessaremos o build e incluiremos uma variável dependencies recebendo a chamada estática de AppDependencies.if() mandando o context como argumento.
+
+@override
+Widget build(BuildContext context) {
+  final dependencies = AppDependencies.of(context);
+  return Scaffold(COPIAR CÓDIGO
+Na chamada de _save(), passaremos a receber um ContactDao contactDao como parâmetro.
+
+void _save(ContactDao contactDao, Contact newContact, BuildContext context) async {
+  await contactDao.save(newContact);
+  Navigator.pop(context);
+}COPIAR CÓDIGO
+Da mesma forma, precisaremos passar essa referência na criação de um newContact.
+
+final Contact newContact = Contact(0, name, accountNumber);
+_save(dependencies.contactDao, newContact, context);COPIAR CÓDIGO
+Além disso, na definição de ContactForm, não mais precisaremos enviar o contactDao para o _ContactFormState().
+
+class ContactForm extends StatefulWidget {
+  @override
+  _ContactFormState createState() => _ContactFormState();
+}
+COPIAR CÓDIGO
+Replicaremos esse processo para os próximos widgets. Em ContactsList, deixaremos de passar o contactDao via argumento para o ContactForm() e criaremos, no build, uma variável dependencies recebendo a nossa função estática. Assim, ganharemos acesso ao dependencies.contactDao.findAll().
+
+class _ContactsListState extends State<ContactsList> {
+  @override
+  Widget build(BuildContext context) {
+    final dependencies = AppDependencies.of(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Transfer'),
+      ),
+      body: FutureBuilder<List<Contact>>(
+        initialData: List(),
+        future: dependencies.contactDao.findAll(),
+//...COPIAR CÓDIGO
+Após essas alterações, executaremos o aplicativo, o que nos retornará um erro informando a existência de uma referência nula justamente na função updateShouldNotify(). Essa função basicamente verifica se os atributos que estamos utilizando são diferentes do widget recebido via parâmetro, o que, em caso positivo, gerará uma notificação.
+
+Sendo assim, retornaremos nessa função uma verificação se contactDao é diferente de oldWidget.ContactDao, onde oldWidget representará o nosso AppDependencies.
+
+@override
+bool updateShouldNotify(AppDependencies oldWidget) {
+  return contactDao != oldWidget.contactDao;
+}COPIAR CÓDIGO
+Por fim, voltaremos ao BytebankApp() e mandaremos o contactDao no retorno de AppDependencies().
+
+class BytebankApp extends StatelessWidget {
+  final ContactDao contactDao;
+  BytebankApp({@required this.contactDao});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppDependencies(
+      contactDao: contactDao,
+//...COPIAR CÓDIGO
+Executando a aplicação, tudo voltará a funcionar corretamente. Além disso, os testes save_contact_flow.dart e transfer_flow.dart também funcionarão, agora com a capacidade de adicionar um _webClient sem a necessidade de convertermos todo o projeto com a técnica de injeção de dependência. A seguir, utilizaremos o InheritedWidget para mandar o _webClient.
+
+@@02
+Implementando o AppDependencies
+
+Caso precise, no link a seguir, você pode baixar o projeto com todas as alterações realizadas na aula passada.
+Modifique o código para utilizar o InheritedWidget. Para isso, crie: a classe AppDependencies e um atributo do tipo ContactDao, que deve ser inicializado no construtor.
+
+Adicione também mais um parâmetro para receber o Widget, que deve ser renderizado, e envie para o construtor super.
+
+Utilize parâmetros opcionais nominais com a indicação do @required.
+Depois de adicionar os parâmetros, implemente os métodos updateShouldNotify() que devolve true se os atributos são diferentes e o of() que é a função estática para obter o InheritedWidget.
+
+Em seguida, ajuste o código do build() do BytebankApp e envolva o MaterialApp com o AppDependencies. Então, envie o ContactDao como argumento para o AppDependencies.
+
+Ajuste todos os Widgets que recebem o ContactDao via construtor para que peguem a referência a partir do AppDependencies.
+
+Após todos os ajustes, rode o teste e confira se funciona como antes.
+
+https://github.com/alura-cursos/flutter-tests/archive/aula-4.zip
+
+https://github.com/alura-cursos/flutter-tests/commit/93b969cd0bef94425434e52961cba216f703da15
+
+@@03
+Adicionando a dependência do web client
+
+Neste passo, modificaremos o TransactionForm para que ele consiga pegar o _webClient a partir do InheritedWidget. Primeiramente, na classe TransactionFormState, removeremos a instância de TransactionWebClient. Em seguida, acessaremos a classe AppDependencies e criaremos o atributo transactionWebClient, que será recebido como parâmetro nomeado do construtor a partir de @required.
+class AppDependencies extends InheritedWidget {
+  final ContactDao contactDao;
+  final TransactionWebClient transactionWebClient;
+
+  AppDependencies({
+    @required this.contactDao,
+    @required this.transactionWebClient,
+    @required Widget child,
+  }) : super(child: child);
+//...COPIAR CÓDIGO
+Como temos um novo atributo, precisaremos incluí-lo na lógica do updateShouldNotify() com a regra de || ("or"). Sendo assim, se um deles estiver diferente, a atualização será necessária.
+
+@override
+bool updateShouldNotify(AppDependencies oldWidget) {
+  return contactDao != oldWidget.contactDao || transactionWebClient != oldWidget.transactionWebClient;
+}COPIAR CÓDIGO
+Modificaremos também oBytebankApp para que ele também receba o TransactionWebClient e envie ao AppDependencies. Para isso, adicionaremos um atributo transactionWebClient que também será recebido via parâmetro do construtor. No método main(), além de mandarmos o ContactDao(), mandaremos também uma instância de TransactionWebClient().
+
+void main() {
+  runApp(BytebankApp(
+    contactDao: ContactDao(),
+    transactionWebClient: TransactionWebClient(),
+  ));
+}
+
+class BytebankApp extends StatelessWidget {
+  final ContactDao contactDao;
+  final TransactionWebClient transactionWebClient;
+
+  BytebankApp({
+    @required this.contactDao,
+    @required this.transactionWebClient,
+  });
+//...COPIAR CÓDIGO
+Agora que o AppDependencies() possui acesso ao transactionWebClient, podemos mandá-lo sem problemas. Desta forma, qualquer tipo de Widget dentro da árvore poderá acessá-lo.
+
+@override
+Widget build(BuildContext context) {
+  return AppDependencies(
+    transactionWebClient: transactionWebClient,
+    contactDao: contactDao,
+//...COPIAR CÓDIGO
+Em TransactionForm, incluiremos no escopo de build() um dependencies recebendo AppDependencies.of() para o qual mandaremos um context.
+
+@override
+Widget build(BuildContext context) {
+  final dependencies = AppDependencies.of(context);COPIAR CÓDIGO
+Agora precisamos mandar o TransactionWebClientpara a função _send(), que possui muitas extrações. Sendo assim, vamos chamá-lo de webClient, passando-o como parâmetro da função. Assim, quem estiver chamando essa função irá replicar essa referência até termos acesso ao dependencies.
+
+O próximo passo será fazer com que nosso teste também mande um mock, evitando as execuções desnecessárias e adquirindo controle sobre as ações dos objetos simulados. Ou seja, precisaremos também de um mock para TransactoinWebClient. Em mocks.dart, adicionaremos a classe MockTransactionWbClient estendendo de Mock e implementando TransactionWebClient.
+
+class MockTransactionWebClient extends Mock implements TransactionWebClient {
+
+}COPIAR CÓDIGO
+No método main() do teste do fluxo de transferência, criaremos a variável mockTransactionWebClient recebendo uma instância de MockTransactionWebClient(), e o passaremos como parâmetro de ByteBankApp().
+
+void main(){
+  testWidgets('Should transfer to a contact', (tester) async {
+    final mockContactDao = MockContactDao();
+    final mockTransactionWebClient = MockTransactionWebClient();
+    await tester.pumpWidget(BytebankApp(contactDao: mockContactDao,
+    transactionWebClient: mockTransactionWebClient,));
+//...COPIAR CÓDIGO
+Desta maneira, poderemos fazer as simulações e verificar se algo foi chamado sem ter todo o trabalho de replicar no ByteBankApp(), Dashboard() e assim por diante.
+
+Agora, podemos prosseguir com os testes e chegar até o momento de realizar alguma verificação. A primeira consiste em atestar se o nome do contato e seu número da conta estão corretos, bem como preenchimento do formulário com algum valor de transferência.
+
+Como já verificamos o formulário, podemos partir para o nome do contato. Criaremos em transfer_flow.dart uma variável contactName e buscaremos o texto com find.text() passando a string "Alex". Em seguida, faremos um expect() passando essa variável e o findsOneWidget. Repetiremos esse processo para contactAccountNumber.
+
+final contactName = find.text('Alex');
+expect(contactName, findsOneWidget);
+final contactAccountNumber = find.text(1000);
+expect(contactAccountNumber, findsOneWidget);COPIAR CÓDIGO
+Ao executarmos os testes, nosso fluxo continuará funcionando como esperado. Continuaremos com a adição de um textFieldValue, relacionado ao campo de valor, no qual usaremos o find.byWidgetPredicate() implementando uma função callback na qual retornamos false por padrão e provamos o contrário com if.
+
+Dentro da função, usaremos a mesma lógica que fizemos no save_contact_flow.dart. Sendo assim, tornaremos público o método _textFieldMatcher e o moveremos para o arquivo matchers.dart. Em seguida, alteraremos o seu nome para textFieldByLabelTextMatcher, tornando sua funcionalidade mais explícita.
+
+bool textFieldByLabelText(Widget widget, String labelText) {
+  if(widget is TextField) {
+    return widget.decoration.labelText == labelText;
+  }
+  return false;
+}COPIAR CÓDIGO
+Passaremos a usar essa função em transfer_flow.dart, retornando-a diretamente e passando como parâmetros o widget e o valor esperado do campo ("Value"). Feito isso, verificaremos se o campo é visível com o expetc().
+
+final textFieldValue = find.byWidgetPredicate((widget){
+  return textFieldByLabelText(widget, 'Value');
+});
+expect(textFieldValue, findsOneWidget);COPIAR CÓDIGO
+Adicionaremos um valor (nesse caso 200) a esse campo com o text.enterText() e prosseguiremos para a última parte, que é relacionada ao botão. Criaremos a variável transferButton recebendo o find.widgetWithText(), que verificará tanto se ele é um RaisedButton quanto se o texto é "Transfer". Como já sabido, executaremos o expect() recebendo TransferButton e findsOneWidget.
+
+final textFieldValue = find.byWidgetPredicate((widget){
+  return textFieldByLabelText(widget, 'Value');
+});
+expect(textFieldValue, findsOneWidget);
+await tester.enterText(textFieldValue, '200');
+
+final transferButton = find.widgetWithText(RaisedButton, 'Transfer');
+expect(transferButton, findsOneWidget);COPIAR CÓDIGO
+Continuaremos o teste com tester.tap() passando o nosso transferButton, de modo a verificarmos se o clique funciona. Como entraremos em uma nova tela, adicionaremos o await tester.pumpAndSettle() e prosseguiremos avaliando se a autenticação foi feita, o que ocorre no nosso dialog.
+
+Criaremos a variável transactionAuthDialog recebendo a busca find.byType(TransactionAuthDialog), fazendo o expect() em seguida.
+
+final transferButton = find.widgetWithText(RaisedButton, 'Transfer');
+expect(transferButton, findsOneWidget);
+await tester.tap(transferButton);
+await tester.pumpAndSettle();
+
+final transactionAuthDialog = find.byType(TransactionAuthDialog);
+expect(transactionAuthDialog, findsOneWidget);COPIAR CÓDIGO
+Com a execução, conseguiremos garantir os nossos testes até essa etapa. A seguir, testaremos os próximos passos da criação de uma transferência.
+
+@@04
+Testando até a autenticação
+
+Ajuste o código de teste de fluxo para chegar até o dialog de autenticação.
+Neste teste, ajuste o código do widget de formulário de transferência para receber o TransactionWebClient pelo AppDependencies.
+
+Em seguida, envie um objeto simulado compatível com TransactionWebClient para o BytebankApp e implemente todo o código de teste de fluxo até verificar a existência do dialog de autenticação.
+
+Durante a implementação do teste, reutilize código de Finder, por exemplo, a busca de TextField por label text.
+Ao finalizar os ajustes, rode o teste e confira se funciona.
+
+O teste deve passar sem nenhum problema. Você pode conferir o código desta atividade a partir deste commit.
+
+https://github.com/alura-cursos/flutter-tests/commit/ec861dcdbb8f2b89337e4509180d5fd504805148
+
+@@06
+Avançando o teste até o final do fluxo
+
+Modifique o código de teste para autenticar a transferência e volte até a lista de contatos.
+Para buscar o TextField que recebe a senha do usuário, utilize a Key do Flutter. Ao clicar no botão de confirmação, modifique a resposta de save() do web client para que devolva um Future<Transaction>, que devolve uma transferência com valor e contato esperado.
+
+Lembre-se de implementar o operador == e hashcode para o when() conseguir identificar a transferência com os argumentos esperados.
+
+Após todos os ajustes, rode o teste e veja se passa.
+
+O teste deve passar sem nenhum problema. Você pode conferir o código desta atividade a partir deste commit.
+
+https://github.com/alura-cursos/flutter-tests/commit/96a3e77530b44a537315ab21993032bdd4009534
+
+@@07
+Refatoração de teste
+
+Criamos 2 testes de fluxo que ficaram com um código um tanto quanto grande.
+Em outras palavras, é natural aplicar o procedimento de refatoração de código para melhorar a legibilidade e reutilização de código em determinadas interações.
+
+Considerando o teste de fluxo para salvar um contato, podemos refatorá-lo considerando as seguintes técnicas:
+
+Configuração de inicialização via setup;
+Extração de ações genéricas;
+Reutilização de funções.
+Então temos o seguinte resultado após a refatoração:
+
+void main() {
+  MockContactDao mockContactDao;
+
+  setUp(() async {
+    mockContactDao = MockContactDao();
+  });
+
+  testWidgets('Should save a contact', (tester) async {
+    await tester.pumpWidget(BytebankApp(
+      contactDao: mockContactDao,
+    ));
+
+    final dashboard = find.byType(Dashboard);
+    expect(dashboard, findsOneWidget);
+
+    await clickOnTheTransferFeatureItem(tester);
+    await tester.pumpAndSettle();
+
+    final contactsList = find.byType(ContactsList);
+    expect(contactsList, findsOneWidget);
+
+    verify(mockContactDao.findAll()).called(1);
+
+    await clickOnTheFabNew(tester);
+    await tester.pumpAndSettle();
+
+    final contactForm = find.byType(ContactForm);
+    expect(contactForm, findsOneWidget);
+
+    await fillTextFieldWithTextLabel(tester,
+        text: 'Alex', labelText: 'Full name');
+
+    await fillTextFieldWithTextLabel(tester,
+        labelText: 'Account number', text: '1000');
+
+    await clickOntheRaisedButtonWithText(tester, 'Create');
+    await tester.pumpAndSettle();
+
+    verify(mockContactDao.save(Contact(0, 'Alex', 1000)));
+
+    final contactsListBack = find.byType(ContactsList);
+    expect(contactsListBack, findsOneWidget);
+
+    verify(mockContactDao.findAll());
+  });
+}COPIAR CÓDIGO
+Note que ao invés de interpretar vários blocos de código, agora temos funções mais expressivas e que podem ser reutilizadas tanto nesse teste como em outros que fazem as mesmas ações. Para uma visualização mais detalhada da refatoração, confira o seguinte commit.
+
+Agora é a sua vez
+Com as mesmas técnicas, faça a refatoração do teste de fluxo de transferência, lembre-se de reutilizar quaisquer ações já feitas.
+
+@@08
+O que aprendemos?
+
+O que aprendemos nesta aula:
+O que é e como implementar um InheritedWidget;
+Como configurar chaves no Flutter e como bus
+
+@@09
+Conclusão
+
+Parabéns por ter completado o curso de Testes em Flutter!. Agora somos capazes de criar nossos próprios testes em um aplicativo. Para concluir, vamos revisar o que foi aprendido ao longo das aulas.
+Começamos com um aplicativo com diversos comportamentos já prontos, mas não havíamos garantido que estes comportamentos estavam funcionando como esperado. Em Flutter, existem vários testes disponíveis, como o Testes de Unidade para a regra de negócio, Testes de Widget para validarmos um widget exclusivo ou um fluxo que o utiliza, e até mesmo o teste end-to-end de integração.
+
+Focamos nos dois primeiros e, para criá-los, utilizamos uma pasta "test" destinada às suas configurações. Começamos pelo Teste de Unidade em transaction_test.dart, realizando uma validação bastante simples da nossa regra de negócio, exclusiva para a classe Transaction. Verificamos, por exemplo, se o valor enviado é o mesmo que é devolvido, e se um erro de assert é apresentado ao enviarmos uma transferência com valor zerado.
+
+Conforme avançamos, abordamos os Testes de Widget e conhecemos diversas técnicas novas. Percebemos que temos acesso a algumas ferramentas do próprio Flutter que permitem renderizar um widget em memória, ganhando uma determinada velocidade em relação ao Teste de Unidade. Desta forma, podemos criar vários testes para validar parte da tela rapidamente e com feedbacks interessantes e mais garantidos, como demonstra o trade-off da documentação do Flutter.
+
+Aprendemos como aplicar ambas as categorias de testes e observamos suas complexidades; o Teste de Widget é um pouco mais complexo, pois é o widget tester que se comunica com o framework de Flutter buscando cada um dos widgets a partir dos finders, verificando se foram encontrados ou não, e assim por diante.
+
+Durante as implementações, vimos que alguns aspectos que antes não prestávamos tanta atenção foram expostos, como no caso da tela de Dashboard. Nela, quando fizemos uma múltipla execução do arquivo todo, tivemos um problema scroll, chamando atenção para o uso do LayoutBuilder() para resolver esse erro.
+
+Em seguida, avançamos para testes mais complexos de fluxo. Começamos com os comportamentos que salvam um contato, e tivemos que aplicar a técnica de Injeção de Dependência e objetos mockados para evitar que a integração fosse chamada. Também verificamos o comportamento esperado do fluxo, validando a apresentação de cada tela.
+
+Aprendemos bastante ao longo das aulas, conhecemos múltiplos buscadores (finders) e encontrando técnicas para melhorar o projeto. Por exemplo, antes usávamos um StatelessWidget com FutureBuilder, o que pode ocasionar problemas de carregamento. Durante o teste, vimos que o feedback foi bem preciso ao apontar o que não ocorreu como esperado e o que foi executado corretamente.
+
+Esperamos que você tenha gostado desse conteúdo, que é bem mais avançado e exige um conhecimento prévio de Flutter e de todo o fluxo de uma aplicação. Caso tenha dúvidas, sugestões, críticas ou elogios, nosso Fórum está sempre à disposição!
+
+Bons estudos e até a próxima!
+
+https://github.com/alura-cursos/flutter-tests/archive/aula-5.zip
